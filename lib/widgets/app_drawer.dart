@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/constants.dart';
+import '../core/constants/app_colors.dart';
+import '../core/constants/app_strings.dart';
+import '../core/services/storage_service.dart';
+import '../screens/language_selection/language_selection_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -12,7 +15,7 @@ class AppDrawer extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(color: primaryColor),
+            decoration: const BoxDecoration(color: AppColors.primary),
             child: FutureBuilder<SharedPreferences>(
               future: SharedPreferences.getInstance(),
               builder: (context, snapshot) {
@@ -25,74 +28,134 @@ class AppDrawer extends StatelessWidget {
                     const CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.white,
-                      child: Icon(Icons.person, size: 36, color: primaryColor),
+                      child: Icon(
+                        Icons.person,
+                        size: 36,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       username,
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold),
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       email,
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 );
               },
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.rocket_launch_outlined),
-            title: const Text('Getting Started'),
-            onTap: () => Navigator.pop(context),
+          _buildDrawerItem(
+            context,
+            icon: Icons.rocket_launch_outlined,
+            title: 'Getting Started',
           ),
-          ListTile(
-            leading: const Icon(Icons.sync),
-            title: const Text('Sync Data'),
-            onTap: () => Navigator.pop(context),
+          _buildDrawerItem(
+            context,
+            icon: Icons.sync,
+            title: 'Sync Data',
           ),
-          ListTile(
-            leading: const Icon(Icons.emoji_events_outlined),
-            title: const Text('Gamification'),
-            onTap: () => Navigator.pop(context),
+          _buildDrawerItem(
+            context,
+            icon: Icons.emoji_events_outlined,
+            title: 'Gamification',
           ),
-          ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Send Logs'),
-            onTap: () => Navigator.pop(context),
+          _buildDrawerItem(
+            context,
+            icon: Icons.description_outlined,
+            title: 'Send Logs',
           ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text('Settings'),
-            onTap: () => Navigator.pop(context),
+          _buildDrawerItem(
+            context,
+            icon: Icons.settings_outlined,
+            title: 'Settings',
           ),
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Help?'),
-            onTap: () => Navigator.pop(context),
+          _buildDrawerItem(
+            context,
+            icon: Icons.help_outline,
+            title: 'Help?',
           ),
-          ListTile(
-            leading: const Icon(Icons.cancel_outlined),
-            title: const Text('Cancel Subscription'),
-            onTap: () => Navigator.pop(context),
+          _buildDrawerItem(
+            context,
+            icon: Icons.cancel_outlined,
+            title: 'Cancel Subscription',
           ),
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Logout', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                // Example logout logic
-                Navigator.pop(context);
-              },
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Text(
+              'App Info',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.info_outline,
+            title: 'About Us',
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.privacy_tip_outlined,
+            title: 'Privacy Policy',
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.system_update_outlined,
+            title: AppStrings.appVersion,
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.share_outlined,
+            title: 'Share App',
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.red),
+            ),
+            onTap: () => _handleLogout(context),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildDrawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: () => Navigator.pop(context),
+    );
+  }
+
+  Future<void> _handleLogout(BuildContext context) async {
+    await StorageService.clearAll();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const LanguageSelectionScreen(),
+        ),
+        (route) => false,
+      );
+    }
   }
 }

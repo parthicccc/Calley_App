@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
-import '../widgets/app_drawer.dart';
-import 'call_stats_screen.dart';
-import '../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../widgets/app_drawer.dart';
+import '../../widgets/custom_button.dart';
+import '../call_stats/call_stats_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -13,8 +14,14 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [
-          IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {},
+          ),
         ],
       ),
       drawer: const AppDrawer(),
@@ -24,19 +31,14 @@ class DashboardScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Welcome to Dashboard', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const Text(
+                'Welcome to Dashboard',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => _showListBottomSheet(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Star Calling Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
-                ),
+              CustomButton(
+                text: 'Star Calling Now',
+                onPressed: () => _showListBottomSheet(context),
               ),
             ],
           ),
@@ -56,16 +58,25 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Select Calling List', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Select Calling List',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 20),
             ListTile(
               title: const Text('Test List'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () async {
                 Navigator.pop(context);
-                final userId = await AuthService.getUserId();
+                final prefs = await SharedPreferences.getInstance();
+                final userId = prefs.getString('userId');
                 if (userId != null && context.mounted) {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => CallStatsScreen(userId: userId)));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CallStatsScreen(userId: userId),
+                    ),
+                  );
                 }
               },
             ),

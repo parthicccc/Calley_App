@@ -1,0 +1,1153 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:fl_chart/fl_chart.dart';
+
+void main() {
+  runApp(const CalleyApp());
+}
+
+class CalleyApp extends StatelessWidget {
+  const CalleyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Calley',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primaryColor: const Color(0xFF2F5FFF),
+        scaffoldBackgroundColor: Colors.white,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2F5FFF)),
+        useMaterial3: true,
+      ),
+      home: const LanguageSelectionScreen(),
+    );
+  }
+}
+
+// Language Selection Screen
+class LanguageSelectionScreen extends StatefulWidget {
+  const LanguageSelectionScreen({super.key});
+
+  @override
+  State<LanguageSelectionScreen> createState() => _LanguageSelectionScreenState();
+}
+
+class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
+  String _selectedLanguage = 'en';
+
+  final List<Map<String, String>> _languages = [
+    {'code': 'en', 'name': 'English', 'greeting': 'Hi'},
+    {'code': 'hi', 'name': 'Hindi', 'greeting': 'नमस्ते'},
+    {'code': 'bn', 'name': 'Bengali', 'greeting': 'হ্যালো'},
+    {'code': 'kn', 'name': 'Kannada', 'greeting': 'ನಮಸ್ಕಾರ'},
+    {'code': 'pa', 'name': 'Punjabi', 'greeting': 'ਸਤ ਸ੍ਰੀ ਅਕਾਲ'},
+    {'code': 'ta', 'name': 'Tamil', 'greeting': 'வணக்கம்'},
+    {'code': 'te', 'name': 'Telugu', 'greeting': 'హలో'},
+    {'code': 'fr', 'name': 'French', 'greeting': 'Bonjour'},
+    {'code': 'es', 'name': 'Spanish', 'greeting': 'Hola'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              const Text(
+                'Choose Your Language',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 30),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: _languages.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      color: Colors.grey.shade200,
+                    ),
+                    itemBuilder: (context, index) {
+                      final language = _languages[index];
+                      final isSelected = _selectedLanguage == language['code'];
+                      
+                      return ListTile(
+                        title: Text(
+                          language['name']!,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          language['greeting']!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        trailing: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSelected ? const Color(0xFF2F5FFF) : Colors.transparent,
+                            border: Border.all(
+                              color: isSelected ? const Color(0xFF2F5FFF) : Colors.grey.shade400,
+                              width: 2,
+                            ),
+                          ),
+                          child: isSelected
+                              ? const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 16,
+                                )
+                              : null,
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _selectedLanguage = language['code']!;
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2F5FFF),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Select', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Register Screen
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _isLoading = false;
+  bool _agreedToTerms = false;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (!_agreedToTerms) {
+      _showError('Please agree to the Terms and Conditions');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://mock-api.calleyacd.com/api/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': _usernameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Send OTP after successful registration
+        await http.post(
+          Uri.parse('https://mock-api.calleyacd.com/api/auth/send-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': _emailController.text.trim()}),
+        );
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OtpVerificationScreen(
+                email: _emailController.text.trim(),
+                phone: '+91${_phoneController.text.trim()}',
+              ),
+            ),
+          );
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        _showError(errorData['message'] ?? 'Registration failed. Please try again.');
+      }
+    } catch (e) {
+      _showError('Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                Image.asset(
+                  'assets/logo.png',
+                  height: 80,
+                ),
+
+                const SizedBox(height: 40),
+                const Text('Welcome!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                const Text('Please register to continue', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 30),
+                TextFormField(
+                  controller: _usernameController,
+                  decoration: InputDecoration(
+                    hintText: 'Name',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (v) => v == null || v.isEmpty ? 'Enter name' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    hintText: 'Email address',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) => v == null || !v.contains('@') ? 'Enter valid email' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(
+                    hintText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  obscureText: true,
+                  validator: (v) => v == null || v.length < 3 ? 'Password too short' : null,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      height: 58,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: Image.network(
+                              'https://flagcdn.com/w40/in.png',
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.flag, size: 16),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            '+91',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _phoneController,
+                        decoration: InputDecoration(
+                          hintText: 'Mobile number',
+                          prefixIcon: const Icon(Icons.phone_outlined),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        keyboardType: TextInputType.phone,
+                        maxLength: 10,
+                        buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Enter mobile number';
+                          if (v.length != 10) return 'Enter 10-digit number';
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: _agreedToTerms,
+                        onChanged: (value) {
+                          setState(() {
+                            _agreedToTerms = value ?? false;
+                          });
+                        },
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                        activeColor: const Color(0xFF2F5FFF),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _agreedToTerms = !_agreedToTerms;
+                          });
+                        },
+                        child: RichText(
+                          text: const TextSpan(
+                            style: TextStyle(fontSize: 13, color: Colors.black),
+                            children: [
+                              TextSpan(text: 'I agree to the '),
+                              TextSpan(
+                                text: 'Terms and Conditions',
+                                style: TextStyle(
+                                  color: Color(0xFF2F5FFF),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Already have an account? '),
+                    GestureDetector(
+                      onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+                      child: const Text('Sign In', style: TextStyle(color: Color(0xFF2F5FFF), fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _register,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2F5FFF),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// OTP Verification Screen
+class OtpVerificationScreen extends StatefulWidget {
+  final String email;
+  final String phone;
+  
+  const OtpVerificationScreen({
+    super.key,
+    required this.email,
+    this.phone = '',
+  });
+
+  @override
+  State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
+}
+
+class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
+  final List<TextEditingController> _controllers = List.generate(6, (index) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
+    for (var node in _focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  String _getOtpCode() {
+    return _controllers.map((controller) => controller.text).join();
+  }
+
+  Future<void> _verifyOtp() async {
+    final otp = _getOtpCode();
+    
+    if (otp.length != 6) {
+      _showError('Please enter complete 6-digit OTP');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://mock-api.calleyacd.com/api/auth/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': widget.email,
+          'otp': otp,
+        }),
+      );
+
+      setState(() => _isLoading = false);
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+        }
+      } else {
+        _showError('Invalid OTP');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError('Error: $e');
+    }
+  }
+
+  Future<void> _resendOtp() async {
+    await http.post(
+      Uri.parse('https://mock-api.calleyacd.com/api/auth/send-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': widget.email}),
+    );
+    _showSuccess('OTP sent to your email');
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.green));
+  }
+
+  Widget _buildOtpBox(int index) {
+    return Container(
+      width: 50,
+      height: 60,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: _controllers[index].text.isEmpty ? Colors.grey.shade300 : const Color(0xFF2F5FFF),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: _controllers[index],
+        focusNode: _focusNodes[index],
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        maxLength: 1,
+        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          counterText: '',
+        ),
+        onChanged: (value) {
+          if (value.isNotEmpty && index < 5) {
+            _focusNodes[index + 1].requestFocus();
+          } else if (value.isEmpty && index > 0) {
+            _focusNodes[index - 1].requestFocus();
+          }
+          
+          if (index == 5 && value.isNotEmpty) {
+            _verifyOtp();
+          }
+          
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 60),
+              const Text('Whatsapp OTP', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const Text('Verification', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text(
+                'Please ensure that the email id mentioned is valid',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const Text(
+                'as we have sent an OTP to your email.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  6,
+                  (index) => Padding(
+                    padding: EdgeInsets.only(
+                      left: index == 0 ? 0 : 6,
+                      right: index == 5 ? 0 : 6,
+                    ),
+                    child: _buildOtpBox(index),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+              if (widget.phone.isNotEmpty)
+                Text(widget.phone, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Didn't receive OTP code? "),
+                  GestureDetector(
+                    onTap: _resendOtp,
+                    child: const Text('Resend OTP', style: TextStyle(color: Color(0xFF2F5FFF), fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _verifyOtp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2F5FFF),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Verify', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Login Screen
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://mock-api.calleyacd.com/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+        }),
+      );
+
+      setState(() => _isLoading = false);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userId', data['user']['_id']);
+        await prefs.setString('username', data['user']['username']);
+        await prefs.setString('email', data['user']['email']);
+
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const WelcomeScreen()));
+        }
+      } else {
+        _showError('Login failed. Check credentials.');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError('Error: $e');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                const SizedBox(height: 60),
+                const Text('CALLEY', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2196F3))),
+                const Text('AUTOMATIC CALL DIALER', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                const SizedBox(height: 50),
+                const Text('Welcome', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                const Text('Please sign-in to continue', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 40),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    hintText: 'Email address',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) => v == null || !v.contains('@') ? 'Enter valid email' : null,
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(
+                    hintText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  obscureText: true,
+                  validator: (v) => v == null || v.isEmpty ? 'Enter password' : null,
+                ),
+                const SizedBox(height: 100),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Don't have an account? "),
+                    GestureDetector(
+                      onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                      child: const Text('Sign Up', style: TextStyle(color: Color(0xFF2F5FFF), fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2F5FFF),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Welcome Screen (with YouTube placeholder)
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2F5FFF),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Row(
+                  children: [
+                    CircleAvatar(radius: 30, backgroundColor: Colors.white, child: Icon(Icons.person, size: 36, color: Color(0xFF2F5FFF))),
+                    SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Hello User', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w500)),
+                        Text('Calley Personal', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
+                child: Column(
+                  children: [
+                    const Text(
+                      'If you are here for the first time then ensure that you have uploaded the list to call from calley Web Panel hosted on https://app.getcalley.com',
+                      style: TextStyle(fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 200,
+                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(12)),
+                      child: const Center(child: Icon(Icons.play_circle_outline, size: 64, color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen())),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2F5FFF),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Star Calling Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Dashboard Screen
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+        ],
+      ),
+      drawer: const AppDrawer(),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Welcome to Dashboard', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 40),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => _showListBottomSheet(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2F5FFF),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Star Calling Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showListBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Select Calling List', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ListTile(
+              title: const Text('Test List'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () async {
+                Navigator.pop(context);
+                final prefs = await SharedPreferences.getInstance();
+                final userId = prefs.getString('userId');
+                if (userId != null && context.mounted) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => CallStatsScreen(userId: userId)));
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Call Stats Screen with Pie Chart
+class CallStatsScreen extends StatefulWidget {
+  final String userId;
+  const CallStatsScreen({super.key, required this.userId});
+
+  @override
+  State<CallStatsScreen> createState() => _CallStatsScreenState();
+}
+
+class _CallStatsScreenState extends State<CallStatsScreen> {
+  bool _isLoading = true;
+  int pending = 0;
+  int called = 0;
+  int rescheduled = 0;
+  String listId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final listResponse = await http.get(
+        Uri.parse('https://mock-api.calleyacd.com/api/list?userId=${widget.userId}'),
+      );
+
+      if (listResponse.statusCode == 200) {
+        final listData = jsonDecode(listResponse.body);
+        listId = listData['_id'];
+
+        final statsResponse = await http.get(
+          Uri.parse('https://mock-api.calleyacd.com/api/list/$listId'),
+        );
+
+        if (statsResponse.statusCode == 200) {
+          final stats = jsonDecode(statsResponse.body);
+          setState(() {
+            pending = stats['pending'] ?? 0;
+            called = stats['called'] ?? 0;
+            rescheduled = stats['rescheduled'] ?? 0;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading data: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Call Statistics')),
+      drawer: const AppDrawer(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const Text('Test List', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Text('${pending + called + rescheduled} CALLS', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                  const SizedBox(height: 40),
+                  SizedBox(
+                    height: 250,
+                    child: PieChart(
+                      PieChartData(
+                        sections: [
+                          PieChartSectionData(
+                            value: called.toDouble(),
+                            title: '$called\nCalled',
+                            color: const Color(0xFF2196F3),
+                            radius: 100,
+                            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          PieChartSectionData(
+                            value: pending.toDouble(),
+                            title: '$pending\nPending',
+                            color: const Color(0xFFFFA726),
+                            radius: 100,
+                            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          PieChartSectionData(
+                            value: rescheduled.toDouble(),
+                            title: '$rescheduled\nRescheduled',
+                            color: const Color(0xFF9C27B0),
+                            radius: 100,
+                            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ],
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  _buildStatCard('Pending', pending, const Color(0xFFFFF3E0), const Color(0xFFFFA726)),
+                  const SizedBox(height: 12),
+                  _buildStatCard('Called', called, const Color(0xFFE3F2FD), const Color(0xFF2196F3)),
+                  const SizedBox(height: 12),
+                  _buildStatCard('Rescheduled', rescheduled, const Color(0xFFF3E5F5), const Color(0xFF9C27B0)),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildStatCard(String label, int value, Color bgColor, Color borderColor) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 2),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          Text('$value Calls', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: borderColor)),
+        ],
+      ),
+    );
+  }
+}
+
+// App Drawer
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFF2F5FFF)),
+            child: FutureBuilder<SharedPreferences>(
+              future: SharedPreferences.getInstance(),
+              builder: (context, snapshot) {
+                final username = snapshot.data?.getString('username') ?? 'User';
+                final email = snapshot.data?.getString('email') ?? '';
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.person, size: 36, color: Color(0xFF2F5FFF)),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      username,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      email,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.rocket_launch_outlined),
+            title: const Text('Getting Started'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.sync),
+            title: const Text('Sync Data'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.emoji_events_outlined),
+            title: const Text('Gamification'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('Send Logs'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('Settings'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Help?'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cancel_outlined),
+            title: const Text('Cancel Subscription'),
+            onTap: () => Navigator.pop(context),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Text('App Info', style: TextStyle(color: Color(0xFF2F5FFF), fontWeight: FontWeight.bold)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('About Us'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Privacy Policy'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.system_update_outlined),
+            title: const Text('Version 1.01.52'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.share_outlined),
+            title: const Text('Share App'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
