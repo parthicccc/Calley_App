@@ -50,7 +50,7 @@ class DashboardScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hello User',
+                          'Hello Swati',
                           style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                         SizedBox(height: 4),
@@ -130,26 +130,56 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Buttons at bottom
-            // Buttons at bottom
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chat, color: Colors.green, size: 36),
-                    onPressed: () {},
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chat, color: Colors.green, size: 30),
+                  onPressed: () {},
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CustomButton(
+                    text: 'Star Calling Now',
+                    onPressed: () => _showListBottomSheet(context),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: CustomButton(
-                      text: 'Star Calling Now',
-                      onPressed: () => _showListBottomSheet(context),
-                    ),
-                  ),
-                ],
-              ),
-
+                ),
+              ],
+            ),
           ],
         ),
+      ),
+
+      // --- Bottom Navigation Bar ---
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 1, // Play icon as selected
+        onTap: (_) {}, // No functionality
+        selectedItemColor: const Color(0xFF2563EB),
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_month_outlined),
+            label: 'Calendar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.play_circle_fill, size: 36),
+            label: 'Call',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            label: 'Settings',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite),
+            label: 'Favorites',
+          ),
+        ],
       ),
     );
   }
