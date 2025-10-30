@@ -77,29 +77,18 @@ class _LoginScreenState extends State<LoginScreen> {
             key: _formKey,
             child: Column(
               children: [
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
+                Image.asset('assets/logo.png', height: 80),
+                const SizedBox(height: 40),
                 const Text(
-                  AppStrings.appName,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.blue,
-                  ),
-                ),
-                const Text(
-                  AppStrings.appSubtitle,
-                  style: TextStyle(fontSize: 10, color: Colors.grey),
-                ),
-                const SizedBox(height: 50),
-                const Text(
-                  'Welcome',
+                  'Welcome!',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const Text(
-                  'Please sign-in to continue',
+                  'Please sign in to continue',
                   style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 30),
                 CustomTextField(
                   controller: _emailController,
                   hintText: 'Email address',
@@ -116,7 +105,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Enter password' : null,
                 ),
-                const SizedBox(height: 100),
+                const SizedBox(height: 60),
+                CustomButton(
+                  text: AppStrings.signIn,
+                  onPressed: _login,
+                  isLoading: _isLoading,
+                ),
+                const SizedBox(height: 30),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -137,12 +132,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 20),
-                CustomButton(
-                  text: AppStrings.signIn,
-                  onPressed: _login,
-                  isLoading: _isLoading,
                 ),
               ],
             ),
