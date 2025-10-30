@@ -36,7 +36,7 @@ class WelcomeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hello User',
+                          'Hello parthiv',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,

@@ -50,7 +50,7 @@ class DashboardScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hello Swati',
+                          'Hello parthiv',
                           style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                         SizedBox(height: 4),
